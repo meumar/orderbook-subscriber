@@ -1,0 +1,24 @@
+{
+  "name": "jupitor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@blockworks-foundation/mango-client": "^3.6.19",
+    "@jup-ag/core": "^2.0.0-beta.4",
+    "@solana/web3.js": "^1.62.0",
+    "decimal.js": "^10.4.1",
+    "isomorphic-fetch": "^3.0.0",
+    "jsbi": "^3.2.5",
+    "readline-sync": "^1.4.10"
+  },
+  "devDependencies": {
+    "@types/isomorphic-fetch": "^0.0.36"
+  }
+}
