@@ -10,8 +10,8 @@
       "declarationMap": true,
       "noImplicitAny": false,
       "resolveJsonModule": true,
-      "sourceMap": true,
-      "esModuleInterop": true
+      "esModuleInterop": true,
+      "moduleResolution": "node",
     },
   }
   
