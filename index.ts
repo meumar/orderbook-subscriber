@@ -13,98 +13,99 @@ const readlineSync = require('readline-sync');
 let quoteCurrency: any = [], orderIds: any = [], selectedCluster: any = "";
 
 const subscribeToOrderbook = async () => {
-    messageHelper("Running...");
-    // setup client
-    let selectedClusterIndex = readlineSync.keyInSelect(clusters, "Select cluster to connect?");
-    selectedCluster = clusters[selectedClusterIndex];
-    const config = new Config(IDS);
-    const groupConfig = getGroupConfigByCluster(config, selectedCluster);
-    messageHelper("Cluster: "+ groupConfig.cluster);
+    try{
+        messageHelper("Running...");
+        // setup client
+        let selectedClusterIndex = readlineSync.keyInSelect(clusters, "Select cluster to connect?");
+        selectedCluster = clusters[selectedClusterIndex];
+        const config = new Config(IDS);
+        const groupConfig = getGroupConfigByCluster(config, selectedCluster);
+        messageHelper("Cluster: "+ groupConfig.cluster);
+    
+    
+    
+        //setup market perp or spot
+        const selectedMarket = readlineSync.keyInSelect(markets, 'Select market?');
+        if (selectedMarket < 0) {
+            messageHelper("Cancelled");
+            return
+        }
+        messageHelper("Selected market: "+ markets[selectedMarket]);
+    
+    
+        //set up quote coin
+        quoteCurrency = [...groupConfig[marketNames[markets[selectedMarket]]].flatMap(e => e.baseSymbol)];
 
-
-
-    //setup market perp or spot
-    const selectedMarket = readlineSync.keyInSelect(markets, 'Select market?');
-    if (selectedMarket < 0) {
-        messageHelper("Cancelled");
-        return
-    }
-    messageHelper("Selected market: "+ markets[selectedMarket]);
-
-
-    //set up quote coin
-    quoteCurrency = [...groupConfig[marketNames[markets[selectedMarket]]].flatMap(e => e.baseSymbol)];
-    const qouteIndex = readlineSync.keyInSelect(quoteCurrency, "Select Quote currency");
-    if (qouteIndex < 0) {
-        messageHelper("Cancelled");
-        return
-    }
-    messageHelper("Selected Quote currency "+ quoteCurrency[qouteIndex]);
-
-
-
-    //connect to cluster
-    const connection = new Connection(
-        config.cluster_urls[groupConfig.cluster],
-        'processed' as Commitment,
-    );
-    const client = new MangoClient(connection, groupConfig.mangoProgramId);
-
-
-
-    // load group & market
-    let perpMarketConfig = getMarketByBaseSymbolAndKind(
-        groupConfig[marketNames[markets[selectedMarket]]],
-        quoteCurrency[qouteIndex]
-    );
-    perpMarketConfig = { ...perpMarketConfig, ...{ kind: markets[selectedMarket] } }
-    const mangoGroup = await client.getMangoGroup(groupConfig.publicKey);
-    const perpMarket = await mangoGroup.loadPerpMarket(
-        connection,
-        perpMarketConfig.marketIndex,
-        perpMarketConfig.baseDecimals,
-        perpMarketConfig.quoteDecimals,
-    );
-
-
-    //setup action & at what quantity
-    const actionIndex = readlineSync.keyInSelect(action, 'Select?');
-    if (actionIndex < 0) {
-        messageHelper("Cancelled");
-        return
-    }
-    const ratio = readlineSync.questionFloat(`${action[actionIndex] == 'sell' ? 'Min' : 'Max'} value you are willing for One ${quoteCurrency[qouteIndex]} in USDC? Enter number: `);
-    if (typeof ratio !== 'number') {
-        messageHelper("Invalid input");
-        return
-    };
-
-
-    //load best and first 100 orders from the market
-    messageHelper(`To ${action[actionIndex]} ${quoteCurrency[qouteIndex]} at ${ratio} ratio finding best order...`);
-    if (action[actionIndex] == 'sell') {
-        const bids = await perpMarket.loadBids(connection);
-        messageHelper(`Best price: ${bids.getBest()?.price} of quantity: ${bids.getBest()?.size}. Order id is ${bids.getBest()?.orderId.toString('hex')}`);
-        messageHelper("Searching on last 100 orders");
-        for (const [price, size, orderId] of bids.getL2(100)) {
-            if (orderIds.indexOf(orderId.toString('hex')) === -1 && price >= ratio) {
-                messageHelper(`Price: ${price}, of quantity ${size}. Order is: ${orderId.toString('hex')}`);
+        const qouteIndex = readlineSync.keyInSelect(quoteCurrency, "Select Quote currency");
+        if (qouteIndex < 0) {
+            messageHelper("Cancelled");
+            return
+        }
+        messageHelper("Selected Quote currency "+ quoteCurrency[qouteIndex]);
+    
+    
+    
+        //connect to cluster
+        const connection = new Connection(
+            config.cluster_urls[groupConfig.cluster],
+            'processed' as Commitment,
+        );
+        const client = new MangoClient(connection, groupConfig.mangoProgramId);
+    
+    
+    
+        // load group & market
+        let perpMarketConfig = getMarketByBaseSymbolAndKind(
+            groupConfig[marketNames[markets[selectedMarket]]],
+            quoteCurrency[qouteIndex]
+        );
+        perpMarketConfig = { ...perpMarketConfig, ...{ kind: markets[selectedMarket] } }
+        const mangoGroup = await client.getMangoGroup(groupConfig.publicKey);
+        const perpMarket = await mangoGroup.loadPerpMarket(
+            connection,
+            perpMarketConfig.marketIndex,
+            perpMarketConfig.baseDecimals,
+            perpMarketConfig.quoteDecimals,
+        );
+    
+    
+        //setup action & at what quantity
+        const actionIndex = readlineSync.keyInSelect(action, 'Select?');
+        if (actionIndex < 0) {
+            messageHelper("Cancelled");
+            return
+        }
+        const ratio = readlineSync.questionFloat(`${action[actionIndex] == 'sell' ? 'Min' : 'Max'} value you are willing for One ${quoteCurrency[qouteIndex]} in USDC? Enter number: `);
+        if (typeof ratio !== 'number') {
+            messageHelper("Invalid input");
+            return
+        };
+    
+    
+        //load best and first 100 orders from the market
+        messageHelper(`To ${action[actionIndex]} ${quoteCurrency[qouteIndex]} at ${ratio} ratio finding best order...`);
+        if (action[actionIndex] == 'sell') {
+            const bids = await perpMarket.loadBids(connection);
+            messageHelper(`Best price: ${bids.getBest()?.price} of quantity: ${bids.getBest()?.size}. Order id is ${bids.getBest()?.orderId.toString('hex')}`);
+            messageHelper("Searching on last 100 orders");
+            for (const [price, size, orderId] of bids.getL2(100)) {
+                if (orderIds.indexOf(orderId.toString('hex')) === -1 && price >= ratio) {
+                    messageHelper(`Price: ${price}, of quantity ${size}. Order is: ${orderId.toString('hex')}`);
+                }
+            }
+        } else {
+            const asks = await perpMarket.loadAsks(connection);
+            messageHelper(`Best price: ${asks.getBest()?.price} of quantity: ${asks.getBest()?.size}. Order id is ${asks.getBest()?.orderId.toString('hex')}`);
+            messageHelper("Searching on last 100 orders");
+            for (const [price, size, orderId] of asks.getL2(100)) {
+                if (orderIds.indexOf(orderId.toString('hex')) === -1 && price <= ratio) {
+                    messageHelper(`Price: ${price}, of quantity ${size}. Order is: ${orderId.toString('hex')}`);
+                }
             }
         }
-    } else {
-        const asks = await perpMarket.loadAsks(connection);
-        messageHelper(`Best price: ${asks.getBest()?.price} of quantity: ${asks.getBest()?.size}. Order id is ${asks.getBest()?.orderId.toString('hex')}`);
-        messageHelper("Searching on last 100 orders");
-        for (const [price, size, orderId] of asks.getL2(100)) {
-            if (orderIds.indexOf(orderId.toString('hex')) === -1 && price <= ratio) {
-                messageHelper(`Price: ${price}, of quantity ${size}. Order is: ${orderId.toString('hex')}`);
-            }
-        }
-    }
-    messageHelper(`Searching of the orders ${action[actionIndex] == 'sell' ? 'above' : 'below'} or equal to ${ratio}`);
+        messageHelper(`Searching of the orders ${action[actionIndex] == 'sell' ? 'above' : 'below'} or equal to ${ratio}`);
 
-    //subscribe order book
-    try {
+        //subscribe order book
         connection.onAccountChange(perpMarketConfig[actionKeys[action[actionIndex]]], (accountInfo) => {
             const orderBook = new BookSide(
                 perpMarketConfig[actionKeys[action[actionIndex]]],
@@ -120,8 +121,9 @@ const subscribeToOrderbook = async () => {
                 }
             }
         });
-    } catch (err) {
+    }catch(e){
         messageHelper("Error Something went wrong!")
+        console.log(e);
     }
 }
 
